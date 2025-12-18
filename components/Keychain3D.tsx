@@ -1,17 +1,11 @@
+
 import React, { useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
-import { Canvas, useLoader, ThreeElements } from '@react-three/fiber';
-import { OrbitControls, Center, ContactShadows, Environment, Lightformer } from '@react-three/drei';
+import { Canvas, useLoader, useThree } from '@react-three/fiber';
+import { OrbitControls, Center, ContactShadows, Environment, Text } from '@react-three/drei';
 import * as THREE from 'three';
-// @ts-ignore - Import path is correct for Vite but TS sometimes struggles with Three.js examples
+// @ts-ignore
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 import { LogoConfig } from '../types';
-
-// Fix: Correctly extending the global JSX namespace to recognize React Three Fiber's intrinsic elements
-declare global {
-  namespace JSX {
-    interface IntrinsicElements extends ThreeElements {}
-  }
-}
 
 interface Keychain3DProps {
   logoConfig: LogoConfig;
@@ -20,47 +14,52 @@ interface Keychain3DProps {
 
 export interface Viewer3DHandle {
   downloadSTL: () => void;
+  setCameraView: (view: 'top' | 'front' | 'side' | 'back') => void;
 }
 
 const ExtrudedLogo: React.FC<{ logoConfig: LogoConfig }> = ({ logoConfig }) => {
-  const texture = useLoader(THREE.TextureLoader, logoConfig.url || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
-  const layers = 20;
-  const extrusionHeight = 1.0; 
+  const texture = useLoader(THREE.TextureLoader, logoConfig.url || '');
   
-  texture.anisotropy = 16;
-  texture.minFilter = THREE.LinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.colorSpace = THREE.SRGBColorSpace; 
+  // 5mm Extrusion mit hoher Layer-Dichte für absolut gerade Linien
+  const layers = 80; 
+  const extrusionHeight = 5.0; 
+  
+  texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.NearestFilter;
+  texture.generateMipmaps = false;
 
   const layerOffsets = useMemo(() => {
     return Array.from({ length: layers }, (_, i) => (i * extrusionHeight) / layers);
   }, [layers, extrusionHeight]);
 
   return (
-    // Fix: JSX tags like group and mesh are now recognized through the extended IntrinsicElements
-    <group 
-      position={[logoConfig.x, logoConfig.y, 3.01]} 
-      rotation={[0, 0, logoConfig.rotation]}
-    >
+    <group position={[logoConfig.x, logoConfig.y, 3.01]} rotation={[0, 0, logoConfig.rotation]}>
       {layerOffsets.map((zOffset, index) => (
-        <mesh 
-          key={index} 
-          position={[0, 0, zOffset]}
-          castShadow={index > layers - 5}
-          receiveShadow
-        >
+        <mesh key={index} position={[0, 0, zOffset]} castShadow={index === layers - 1}>
           <planeGeometry args={[logoConfig.scale, logoConfig.scale]} />
           <meshPhysicalMaterial 
             map={texture}
             transparent={true}
-            alphaTest={0.15}
+            alphaTest={0.6} // Schärfster Alpha-Cut für "Straight Lines"
             side={THREE.DoubleSide}
-            roughness={0.8}
-            metalness={0.0}
-            color={index < layers - 1 ? "#e2e8f0" : "#ffffff"} 
+            roughness={0.5}
+            metalness={0.1}
           />
         </mesh>
       ))}
+      {/* 3D Text Support */}
+      {logoConfig.text && (
+        <Text
+          position={[logoConfig.textX || 0, logoConfig.textY || -20, extrusionHeight + 0.1]}
+          fontSize={logoConfig.textScale || 4}
+          color={logoConfig.customPalette?.[0] || "#ffffff"}
+          anchorX="center"
+          anchorY="middle"
+          font="https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKbxmcZpY.woff"
+        >
+          {logoConfig.text}
+        </Text>
+      )}
     </group>
   );
 };
@@ -68,60 +67,43 @@ const ExtrudedLogo: React.FC<{ logoConfig: LogoConfig }> = ({ logoConfig }) => {
 const KeychainGeometry = forwardRef<THREE.Mesh, { logoConfig: LogoConfig }>(({ logoConfig }, ref) => {
   const shape = useMemo(() => {
     const s = new THREE.Shape();
-    const size = 40;
+    const size = 50; 
     const half = size / 2;
-    const cornerRadius = 4;
-    const eyeletOuterRadius = 9;
-    const eyeletInnerRadius = 5;
-    const eyeX = -half;
-    const eyeY = half;
+    const cornerRadius = 8;
+    const eyeletRadius = 6;
+    const eyeX = -half + 2;
+    const eyeY = half - 2;
 
-    s.moveTo(-half, eyeY - eyeletOuterRadius); 
-    s.lineTo(-half, -half + cornerRadius);
-    s.quadraticCurveTo(-half, -half, -half + cornerRadius, -half);
-    s.lineTo(half - cornerRadius, -half);
-    s.quadraticCurveTo(half, -half, half, -half + cornerRadius);
-    s.lineTo(half, half - cornerRadius);
-    s.quadraticCurveTo(half, half, half - cornerRadius, half);
-    s.lineTo(eyeX + eyeletOuterRadius, half);
-    s.absarc(eyeX, eyeY, eyeletOuterRadius, 0, Math.PI * 1.5, false);
+    s.moveTo(-half + cornerRadius, eyeY);
+    s.lineTo(half - cornerRadius, eyeY);
+    s.quadraticCurveTo(half, eyeY, half, eyeY - cornerRadius);
+    s.lineTo(half, -half + cornerRadius);
+    s.quadraticCurveTo(half, -half, half - cornerRadius, -half);
+    s.lineTo(-half + cornerRadius, -half);
+    s.quadraticCurveTo(-half, -half, -half, -half + cornerRadius);
+    s.lineTo(-half, eyeY - cornerRadius);
+    s.quadraticCurveTo(-half, eyeY, -half + cornerRadius, eyeY);
 
-    const holePath = new THREE.Path();
-    holePath.absarc(eyeX, eyeY, eyeletInnerRadius, 0, Math.PI * 2, false);
-    s.holes.push(holePath);
-
+    const hole = new THREE.Path();
+    hole.absarc(eyeX, eyeY, 4, 0, Math.PI * 2, true);
+    s.holes.push(hole);
     return s;
   }, []);
 
-  const extrudeSettings = {
-    depth: 3, 
-    bevelEnabled: true,
-    bevelSegments: 4,
-    steps: 2,
-    bevelSize: 0.8,
-    bevelThickness: 0.8,
-  };
-
   return (
-    // Fix: Geometry-specific tags like extrudeGeometry are handled via the extended JSX namespace
     <group rotation={[-Math.PI / 2, 0, 0]}>
         <mesh ref={ref} castShadow receiveShadow>
-          <extrudeGeometry args={[shape, extrudeSettings]} />
-          <meshPhysicalMaterial 
-            color="#f8fafc" 
-            roughness={0.25} 
-            metalness={0.1}
-            clearcoat={0.3}
-            clearcoatRoughness={0.2}
-          />
+          <extrudeGeometry args={[shape, { depth: 3, bevelEnabled: true, bevelSize: 0.5, bevelThickness: 0.5 }]} />
+          <meshPhysicalMaterial color="#1a1a1a" roughness={0.2} metalness={0.7} />
         </mesh>
         {logoConfig.url && <ExtrudedLogo logoConfig={logoConfig} />}
     </group>
   );
 });
 
-export const Viewer3D = forwardRef<Viewer3DHandle, Keychain3DProps>(({ logoConfig, detectedColors }, ref) => {
+export const Viewer3D = forwardRef<Viewer3DHandle, Keychain3DProps>(({ logoConfig }, ref) => {
     const meshRef = useRef<THREE.Mesh>(null);
+    const controlsRef = useRef<any>(null);
 
     useImperativeHandle(ref, () => ({
         downloadSTL: () => {
@@ -131,37 +113,40 @@ export const Viewer3D = forwardRef<Viewer3DHandle, Keychain3DProps>(({ logoConfi
             const blob = new Blob([stlString], { type: 'application/octet-stream' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = 'printforge_keychain_base.stl';
+            link.download = 'nudim3d_config.stl';
             link.click();
+        },
+        setCameraView: (view) => {
+            if (!controlsRef.current) return;
+            const cam = controlsRef.current.object;
+            switch(view) {
+                case 'top': cam.position.set(0, 80, 0); break;
+                case 'front': cam.position.set(0, 0, 80); break;
+                case 'side': cam.position.set(80, 0, 0); break;
+                case 'back': cam.position.set(0, 0, -80); break;
+            }
+            controlsRef.current.update();
         }
     }));
 
   return (
-    <div className="w-full h-[350px] md:h-[400px] relative rounded-2xl overflow-hidden shadow-float border border-slate-200">
-        <div className="absolute top-4 left-4 z-10 flex gap-2">
-            <span className="bg-white/90 backdrop-blur px-3 py-1.5 rounded-full text-xs font-bold text-slate-700 border border-slate-200 shadow-sm flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                Live Preview
-            </span>
-            <span className="bg-blue-600/90 backdrop-blur px-3 py-1.5 rounded-full text-xs font-bold text-white border border-blue-500 shadow-sm flex items-center gap-1">
-                <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                Solid Body Extrusion
-            </span>
-        </div>
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-200 to-slate-300 -z-10" />
-      <Canvas shadows camera={{ position: [0, 25, 45], fov: 35 }}>
-        <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2.2} enablePan={false} enableZoom={false} dampingFactor={0.05} />
-        <Environment preset="city">
-             <Lightformer intensity={0.5} position={[10, 5, 0]} scale={[10, 50, 1]} onUpdate={(self) => self.lookAt(0, 0, 0)} />
-        </Environment>
-        {/* Fix: Ambient, spot, and point lights are standard R3F components */}
-        <ambientLight intensity={0.6} />
-        <spotLight position={[10, 30, 20]} angle={0.25} penumbra={1} intensity={1.2} castShadow shadow-mapSize={[1024, 1024]} />
-        <pointLight position={[-10, 0, -10]} intensity={0.5} color="#3b82f6" />
+    <div className="w-full h-full relative bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-shop">
+      <Canvas shadows camera={{ position: [0, 40, 70], fov: 35 }}>
+        <OrbitControls 
+            ref={controlsRef} 
+            makeDefault 
+            minDistance={30} 
+            maxDistance={120} 
+            maxPolarAngle={Math.PI / 1.8} 
+            enablePan={false} 
+        />
+        <Environment preset="city" />
+        <ambientLight intensity={0.5} />
+        <spotLight position={[50, 50, 50]} angle={0.15} intensity={2000} castShadow color="#ffffff" />
         <Center top>
              <KeychainGeometry ref={meshRef} logoConfig={logoConfig} />
         </Center>
-        <ContactShadows position={[0, -0.01, 0]} opacity={0.5} scale={40} blur={2.5} far={4} color="#334155" />
+        <ContactShadows position={[0, -0.01, 0]} opacity={0.3} scale={80} blur={2.5} far={10} />
       </Canvas>
     </div>
   );

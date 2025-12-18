@@ -1,79 +1,56 @@
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PrintForge Premium | Luxury Edition</title>
+    <title>NUDIM3D | Schlüsselanhänger Konfigurator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              onyx: {
-                800: '#1A1A1A',
-                900: '#111111',
-              },
-              gold: {
-                50: '#FFFDF0',
-                100: '#FEF9C3',
-                200: '#FEF08A',
-                300: '#FDE047',
-                400: '#FACC15',
-                500: '#EAB308',
-                600: '#CA8A04',
-                700: '#A16207',
-                800: '#854D0E',
-                900: '#713F12',
-                accent: '#D4AF37',
-              },
+              nudim: {
+                50: '#F8F9FA',
+                100: '#E9ECEF',
+                900: '#212529',
+                gold: '#D4AF37'
+              }
             },
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
-              display: ['Playfair Display', 'serif'],
             },
             boxShadow: {
-              'luxury': '0 20px 50px rgba(0,0,0,0.15)',
-              'gold-glow': '0 0 20px rgba(212, 175, 55, 0.2)',
-            },
-            animation: {
-              'scan-line': 'scan 3s ease-in-out infinite',
-              'pulse-gold': 'pulseGold 2s ease-in-out infinite',
-            },
-            keyframes: {
-              scan: {
-                '0%, 100%': { transform: 'translateY(-10%)', opacity: '0.2' },
-                '50%': { transform: 'translateY(110%)', opacity: '0.8' },
-              },
-              pulseGold: {
-                '0%, 100%': { borderColor: '#D4AF37', boxShadow: '0 0 5px rgba(212, 175, 55, 0.2)' },
-                '50%': { borderColor: '#FACC15', boxShadow: '0 0 20px rgba(212, 175, 55, 0.5)' },
-              }
+              'shop': '0 10px 30px rgba(0,0,0,0.05)',
+              'input': '0 0 0 2px rgba(33, 37, 41, 0.05)',
             }
           },
         },
       }
     </script>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #0A0A0A;
-        color: #F8FAFC;
+        background-color: #F8F9FA;
+        color: #212529;
       }
-      .bg-onyx-mesh {
-        background-color: #0A0A0A;
-        background-image: radial-gradient(circle at 2px 2px, #1A1A1A 1px, transparent 0);
-        background-size: 24px 24px;
+      .custom-range {
+        -webkit-appearance: none;
+        height: 4px;
+        background: #E9ECEF;
+        border-radius: 2px;
       }
-      .gold-gradient {
-        background: linear-gradient(135deg, #D4AF37 0%, #FACC15 50%, #D4AF37 100%);
-      }
-      .gold-text-gradient {
-        background: linear-gradient(135deg, #D4AF37 0%, #FACC15 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+      .custom-range::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        background: #212529;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
       }
     </style>
   <script type="importmap">
@@ -95,7 +72,7 @@
 }
 </script>
 </head>
-  <body class="bg-onyx-mesh">
+  <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

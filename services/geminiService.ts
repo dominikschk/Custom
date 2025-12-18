@@ -9,16 +9,18 @@ export interface AIContentReport {
 
 export const analyzeImageSemantically = async (base64Image: string): Promise<AIContentReport> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
-  // Base64 String säubern (Header entfernen)
   const base64Data = base64Image.split(',')[1] || base64Image;
 
-  const prompt = `Analyze this image for a 3D printing service. 
-  1. Is it a logo, a photograph, or a general graphic?
-  2. What exactly is depicted in this image? (Subject, style)
-  3. Give a short advice for FDM 3D printing (0.4mm nozzle).
+  const prompt = `CRITICAL TASK: Classification for 3D Printing.
+  This service ONLY accepts logos and flat vector-style graphics. 
+  It STRICTLY REJECTS photographs, realistic portraits, or complex scenery.
   
-  Return the result in clear sections.`;
+  Identify:
+  1. CLASSIFICATION: Is this a 'photo' or a 'logo/graphic'?
+  2. DETAIL CHECK: Are there elements smaller than 0.4mm (hair, fine textures)?
+  3. DESCRIPTION: Short sentence about the content.
+  
+  If it's a photo, clearly state 'PHOTO DETECTED' in your classification.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -32,26 +34,25 @@ export const analyzeImageSemantically = async (base64Image: string): Promise<AIC
     });
 
     const text = response.text || "";
+    const lowerText = text.toLowerCase();
     
-    const classification: 'logo' | 'photo' | 'graphic' = 
-      text.toLowerCase().includes('photo') ? 'photo' : 
-      (text.toLowerCase().includes('logo') ? 'logo' : 'graphic');
-
-    // Wir extrahieren die Beschreibung grob aus dem Text
-    const description = text.split('\n')[1] || "Bildinhalt erkannt.";
-    const advice = text.includes('advice') ? text.split('advice')[1] : "Standard FDM Parameter empfohlen.";
+    let classification: 'logo' | 'photo' | 'graphic' = 'graphic';
+    if (lowerText.includes('photo') || lowerText.includes('photograph') || lowerText.includes('realistic')) {
+      classification = 'photo';
+    } else if (lowerText.includes('logo')) {
+      classification = 'logo';
+    }
 
     return {
       classification,
-      description: text.substring(0, 200) + "...",
-      printingAdvice: advice.trim().substring(0, 150)
+      description: text.substring(0, 150),
+      printingAdvice: classification === 'photo' ? "ABGELEHNT: Fotos können nicht gedruckt werden." : "Optimal für 3D-Extrusion."
     };
   } catch (error) {
-    console.error("Gemini Vision Error:", error);
     return {
       classification: 'graphic',
-      description: "Inhalt konnte nicht eindeutig identifiziert werden.",
-      printingAdvice: "Bitte auf hohen Kontrast achten."
+      description: "Analyse-Fehler.",
+      printingAdvice: "Bitte laden Sie ein klares Logo hoch."
     };
   }
 };

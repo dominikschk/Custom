@@ -5,6 +5,11 @@ export interface LogoConfig {
   y: number;
   scale: number;
   rotation: number;
+  text?: string;
+  textX?: number;
+  textY?: number;
+  textScale?: number;
+  customPalette?: string[];
 }
 
 export interface AnalysisResult {
@@ -15,7 +20,8 @@ export interface AnalysisResult {
   complexityRating: number; 
   estimatedPrice: number;
   recommendedScale: number;
-  imageType?: 'logo' | 'photo'; // New field for classification
+  imageType?: 'logo' | 'photo';
+  localDescription?: string;
 }
 
 export interface PrintSettings {
