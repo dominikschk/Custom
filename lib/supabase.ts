@@ -1,8 +1,11 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// These will be loaded from Environment Variables in Vercel
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Erstellt den Client nur, wenn gültige Daten vorhanden sind.
+// Verhindert den Crash "supabaseUrl is required".
+export const supabase = (supabaseUrl && supabaseUrl.startsWith('http')) 
+  ? createClient(supabaseUrl, supabaseKey) 
+  : null;

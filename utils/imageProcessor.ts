@@ -18,7 +18,7 @@ export const processLogo = (imageUrl: string): Promise<ProcessedLogoResult> => {
       canvas.width = targetDim;
       canvas.height = targetDim;
       
-      const scale = Math.min(targetDim / img.width, targetDim / img.height) * 0.9;
+      const scale = Math.min(targetDim / img.width, targetDim / img.height) * 0.85;
       const x = (targetDim - img.width * scale) / 2;
       const y = (targetDim - img.height * scale) / 2;
       
@@ -28,7 +28,7 @@ export const processLogo = (imageUrl: string): Promise<ProcessedLogoResult> => {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
       
-      // Hintergrund entfernen & Kontrast schärfen
+      // Strikte Hintergrund-Entfernung & Kanten-Schärfung
       const bgR = data[0], bgG = data[1], bgB = data[2];
       const paletteSet = new Set<string>();
 
@@ -36,18 +36,17 @@ export const processLogo = (imageUrl: string): Promise<ProcessedLogoResult> => {
         const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
         const dist = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
         
-        if (dist < 40 || a < 100) {
+        if (dist < 45 || a < 110) {
             data[i + 3] = 0;
         } else {
-            // Farbanalyse für Palette
-            const hex = `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
-            if (paletteSet.size < 4) paletteSet.add(hex);
-            
-            // Kontrast-Boost für gerade Wände
-            data[i] = r > 127 ? 255 : r;
-            data[i+1] = g > 127 ? 255 : g;
-            data[i+2] = b > 127 ? 255 : b;
+            // Kontrast-Maximierung für 3D-Extrusion
+            data[i] = r > 127 ? 255 : Math.max(0, r - 30);
+            data[i+1] = g > 127 ? 255 : Math.max(0, g - 30);
+            data[i+2] = b > 127 ? 255 : Math.max(0, b - 30);
             data[i+3] = 255;
+
+            const hex = `#${data[i].toString(16).padStart(2,'0')}${data[i+1].toString(16).padStart(2,'0')}${data[i+2].toString(16).padStart(2,'0')}`;
+            if (paletteSet.size < 4) paletteSet.add(hex);
         }
       }
       

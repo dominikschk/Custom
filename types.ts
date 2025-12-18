@@ -10,6 +10,7 @@ export interface LogoConfig {
   textY?: number;
   textScale?: number;
   customPalette?: string[];
+  shape?: 'square' | 'rounded' | 'circle';
 }
 
 export interface AnalysisResult {

@@ -11,7 +11,6 @@ export interface SavedDesign {
   status: string;
 }
 
-// Helper to convert Base64 to Blob for upload
 const base64ToBlob = async (url: string) => {
   const res = await fetch(url);
   return await res.blob();
@@ -21,14 +20,16 @@ export const saveDesignToDatabase = async (
   config: LogoConfig, 
   analysis: AnalysisResult
 ): Promise<string> => {
-  
-  // 1. Generate ID
   const designId = 'PF-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+  
+  if (!supabase) {
+    console.warn("Supabase nicht konfiguriert. Design wird lokal verarbeitet.");
+    return designId;
+  }
   
   try {
     let publicImageUrl = "";
 
-    // 2. Upload Image to Supabase Storage
     if (config.url) {
       const blob = await base64ToBlob(config.url);
       const fileName = `${designId}.png`;
@@ -40,59 +41,27 @@ export const saveDesignToDatabase = async (
           upsert: true
         });
 
-      if (uploadError) throw uploadError;
-
-      // Get Public URL
-      const { data: urlData } = supabase.storage
-        .from('designs')
-        .getPublicUrl(fileName);
-      
-      publicImageUrl = urlData.publicUrl;
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage
+          .from('designs')
+          .getPublicUrl(fileName);
+        publicImageUrl = urlData.publicUrl;
+      }
     }
 
-    // 3. Save Metadata to Database
-    const { error: dbError } = await supabase
+    await supabase
       .from('designs')
-      .insert([
-        { 
-          id: designId, 
-          config: config, 
-          analysis: analysis,
-          image_url: publicImageUrl,
-          status: 'pending_payment'
-        }
-      ]);
-
-    if (dbError) throw dbError;
+      .insert([{ 
+        id: designId, 
+        config: config, 
+        analysis: analysis,
+        image_url: publicImageUrl,
+        status: 'pending_payment'
+      }]);
 
     return designId;
-
   } catch (error) {
-    console.error("Supabase Error:", error);
-    // Fallback for demo purposes if Supabase isn't configured yet
+    console.error("Database Error:", error);
     return designId;
   }
-};
-
-export const getDesignById = async (id: string): Promise<SavedDesign | null> => {
-  const { data, error } = await supabase
-    .from('designs')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (error) return null;
-  return data as SavedDesign;
-};
-
-// For Admin Dashboard
-export const getAllDesigns = async (): Promise<SavedDesign[]> => {
-  const { data, error } = await supabase
-    .from('designs')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(20);
-
-  if (error) return [];
-  return data as SavedDesign[];
 };
