@@ -1,18 +1,19 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult } from '../types';
 
-// Initialize Gemini Client with API key from environment
+// Fix: Initialize Gemini Client with API key from environment according to guidelines
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeDesign = async (imageBase64: string): Promise<AnalysisResult> => {
   // Remove data URL prefix if present for clean base64
   const cleanBase64 = imageBase64.split(',')[1] || imageBase64;
 
-  const prompt = `
+  const systemInstruction = `
     You are a 3D printing expert optimizing a design for a 40x40mm solid keychain.
     The nozzle size is 0.4mm.
-    
+  `;
+
+  const prompt = `
     TASK:
     1. Analyze the image details.
     2. Determine the maximum scale (in mm) that fits on a 40x40mm surface.
@@ -36,7 +37,7 @@ export const analyzeDesign = async (imageBase64: string): Promise<AnalysisResult
   `;
 
   try {
-    // Using gemini-3-pro-preview for complex spatial reasoning and 3D printing analysis
+    // Fix: Using gemini-3-pro-preview for complex spatial reasoning and 3D printing analysis
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
       contents: {
@@ -51,6 +52,7 @@ export const analyzeDesign = async (imageBase64: string): Promise<AnalysisResult
         ]
       },
       config: {
+        systemInstruction: systemInstruction,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -70,7 +72,7 @@ export const analyzeDesign = async (imageBase64: string): Promise<AnalysisResult
       }
     });
 
-    // Directly access the .text property from GenerateContentResponse
+    // Fix: Directly access the .text property from GenerateContentResponse (do not use text())
     const result = JSON.parse(response.text || '{}');
     
     // Calculate estimated price based on complexity
@@ -93,7 +95,7 @@ export const analyzeDesign = async (imageBase64: string): Promise<AnalysisResult
     return {
       isPrintable: false, 
       confidenceScore: 0,
-      reasoning: "AI Analysis could not complete. Please ensure your API key is valid.",
+      reasoning: "AI Analysis could not complete. Please check your network and configuration.",
       suggestedColors: ["#CCCCCC"],
       complexityRating: 5,
       estimatedPrice: 19.99,
