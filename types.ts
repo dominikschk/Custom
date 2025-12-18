@@ -1,20 +1,21 @@
+
 export interface LogoConfig {
   url: string | null;
   x: number;
   y: number;
   scale: number;
   rotation: number;
-  // emboss removed as it is now standard
 }
 
 export interface AnalysisResult {
   isPrintable: boolean;
-  confidenceScore: number; // 0-100
+  confidenceScore: number; 
   reasoning: string;
-  suggestedColors: string[]; // Hex codes
-  complexityRating: number; // 1-10
+  suggestedColors: string[]; 
+  complexityRating: number; 
   estimatedPrice: number;
-  recommendedScale: number; // New field for AI-driven auto-scaling
+  recommendedScale: number;
+  imageType?: 'logo' | 'photo'; // New field for classification
 }
 
 export interface PrintSettings {

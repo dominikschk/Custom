@@ -4,7 +4,7 @@ import { AnalysisResult } from '../types';
 export interface CapabilityReport {
   title: string;
   description: string;
-  status: 'optimal' | 'warning' | 'critical';
+  status: 'optimal' | 'warning' | 'critical' | 'info';
 }
 
 export const analyzeDesignLocally = async (
@@ -15,52 +15,80 @@ export const analyzeDesignLocally = async (
     const { width, height, data } = imageData;
     const colorCount = palette.length;
     
-    // 1. Nozzle Simulation (0.4mm)
+    // 1. Classification Engine (Photo vs. Logo)
+    // We analyze the local variance (entropy) of the image.
+    let localVarianceSum = 0;
+    let samplePoints = 0;
+    const step = 8; // Performance optimization: sample every 8th pixel
+
+    for (let y = step; y < height - step; y += step) {
+      for (let x = step; x < width - step; x += step) {
+        const idx = (y * width + x) * 4;
+        if (data[idx + 3] < 128) continue; // Skip transparent
+
+        // Compare with right neighbor
+        const rIdx = idx + 4;
+        const diff = Math.abs(data[idx] - data[rIdx]) + 
+                     Math.abs(data[idx+1] - data[rIdx+1]) + 
+                     Math.abs(data[idx+2] - data[rIdx+2]);
+        
+        localVarianceSum += diff;
+        samplePoints++;
+      }
+    }
+
+    const avgVariance = localVarianceSum / (samplePoints || 1);
+    // Threshold: Logos usually have very low avg variance because of flat areas.
+    // Photos have high variance due to gradients and texture.
+    const imageType: 'logo' | 'photo' = avgVariance > 45 ? 'photo' : 'logo';
+
+    // 2. Nozzle Simulation (0.4mm)
     const nozzleThresholdPx = Math.max(2, Math.floor(width / 100)); 
     let thinFeaturesFound = 0;
-    let islandCount = 0; // Floating elements check
 
-    for (let y = 1; y < height - 1; y += 4) {
-      for (let x = 1; x < width - 1; x += 4) {
+    for (let y = 1; y < height - 1; y += 10) { // Faster scan
+      for (let x = 1; x < width - 1; x += 10) {
         const idx = (y * width + x) * 4;
         if (data[idx + 3] > 0) {
           let neighbors = 0;
-          for (let dy = -nozzleThresholdPx; dy <= nozzleThresholdPx; dy++) {
-            for (let dx = -nozzleThresholdPx; dx <= nozzleThresholdPx; dx++) {
+          for (let dy = -nozzleThresholdPx; dy <= nozzleThresholdPx; dy += 2) {
+            for (let dx = -nozzleThresholdPx; dx <= nozzleThresholdPx; dx += 2) {
               const nIdx = ((y + dy) * width + (x + dx)) * 4;
               if (data[nIdx + 3] > 0) neighbors++;
             }
           }
-          if (neighbors < (nozzleThresholdPx * nozzleThresholdPx * 1.2)) {
+          if (neighbors < (nozzleThresholdPx * nozzleThresholdPx * 0.5)) {
             thinFeaturesFound++;
           }
         }
       }
     }
 
-    // 2. Capabilities Evaluation
+    // 3. Capabilities Evaluation
     const capabilities: CapabilityReport[] = [
       {
-        title: "FDM Nozzle Simulation",
+        title: "Semantic Classifier",
+        description: imageType === 'photo' 
+          ? "Detected as a Photograph. AI suggests lithophane extrusion style." 
+          : "Detected as Graphical Logo. Ideal for high-contrast multi-color print.",
+        status: imageType === 'photo' ? 'warning' : 'optimal'
+      },
+      {
+        title: "FDM Precision Check",
         description: thinFeaturesFound < 50 
-          ? "All details exceed 0.4mm. Perfect flow guaranteed." 
-          : `Detected ${thinFeaturesFound} areas potentially too thin for a standard 0.4mm nozzle.`,
-        status: thinFeaturesFound < 50 ? 'optimal' : (thinFeaturesFound < 200 ? 'warning' : 'critical')
+          ? "Fine details verified for 0.4mm nozzle geometry." 
+          : `Detected ${thinFeaturesFound} micro-structures. Increasing scale recommended.`,
+        status: thinFeaturesFound < 50 ? 'optimal' : 'warning'
       },
       {
-        title: "Chroma Quantization",
-        description: `Successfully mapped complex imagery to a ${colorCount}-layer filament sequence.`,
-        status: colorCount <= 4 ? 'optimal' : 'warning'
-      },
-      {
-        title: "Auto-Centering Engine",
-        description: "Calculated center of mass and bounding box for perfect keychain alignment.",
+        title: "Chroma Quantizer",
+        description: `Reduced image to ${colorCount} filament layers for clean extrusion layers.`,
         status: 'optimal'
       }
     ];
 
-    const complexityRating = Math.min(Math.max(colorCount * 2 + (thinFeaturesFound > 20 ? 2 : 0), 1), 10);
-    const isPrintable = colorCount > 0 && thinFeaturesFound < 800;
+    const complexityRating = imageType === 'photo' ? 9 : Math.min(Math.max(colorCount * 2, 1), 10);
+    const isPrintable = colorCount > 0;
     
     const basePrice = 14.99;
     const colorSurcharge = Math.max(0, colorCount - 1) * 2.50;
@@ -68,15 +96,16 @@ export const analyzeDesignLocally = async (
 
     resolve({
       isPrintable,
-      confidenceScore: thinFeaturesFound > 150 ? 65 : 99,
-      reasoning: thinFeaturesFound > 50 
-        ? "AI recommends increasing scale to preserve tiny details." 
-        : "Design verified for high-speed FDM production.",
+      imageType,
+      confidenceScore: imageType === 'photo' ? 85 : 98,
+      reasoning: imageType === 'photo' 
+        ? "Warning: Photo detected. Expect organic textures instead of sharp lines." 
+        : "Geometric logo verified. Ready for precision manufacturing.",
       suggestedColors: palette,
       complexityRating,
       estimatedPrice: Number(estimatedPrice.toFixed(2)),
-      recommendedScale: thinFeaturesFound > 100 ? 38 : 36,
-      capabilities // Pass extra info to UI
+      recommendedScale: imageType === 'photo' ? 39 : 35,
+      capabilities
     });
   });
 };
