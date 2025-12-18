@@ -14,7 +14,9 @@ import {
   Lock,
   Download,
   ShieldCheck,
-  Cpu
+  Cpu,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react';
 
 const SHOPIFY_DOMAIN = process.env.SHOPIFY_DOMAIN || "your-shop.myshopify.com"; 
@@ -61,17 +63,20 @@ const App: React.FC = () => {
       const rawResult = event.target?.result as string;
       try {
         setProcessingStatus("Bild wird optimiert...");
-        const { url, palette } = await processLogo(rawResult);
+        const { url, palette, imageData } = await processLogo(rawResult);
         
         setLogoConfig({ url, x: 0, y: 0, scale: 30, rotation: 0 });
 
-        setProcessingStatus("Vision Engine analysiert...");
-        const localResult = await analyzeDesignLocally(url, palette);
+        setProcessingStatus("Nozzle-Check (0.4mm)...");
+        const localResult = await analyzeDesignLocally(imageData, palette);
         setAnalysis(localResult);
         
         if (localResult.isPrintable) {
           setLogoConfig(prev => ({ ...prev, scale: localResult.recommendedScale }));
           setActiveStep(3); 
+        } else {
+          setFileError("Das Design enthält zu feine Details oder wurde nicht erkannt.");
+          setActiveStep(1);
         }
       } catch (err) {
         setFileError("Analyse fehlgeschlagen.");
@@ -189,8 +194,8 @@ const App: React.FC = () => {
                   <div className="group relative h-48 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center bg-slate-50 hover:bg-orange-50 hover:border-orange-200 transition-all cursor-pointer">
                     <input type="file" accept="image/*" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer z-20" />
                     <div className="bg-white p-4 rounded-xl shadow-sm group-hover:scale-110 transition-transform"><Upload className="text-slate-400 group-hover:text-orange-500" /></div>
-                    <span className="text-sm font-bold mt-4 text-slate-600">Datei auswählen</span>
-                    <span className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">PNG, JPG bis 5MB</span>
+                    <span className="text-sm font-bold mt-4 text-slate-600">Logo hochladen</span>
+                    <span className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">Wird automatisch zentriert</span>
                   </div>
                 ) : (
                   <div className="text-center py-12">
@@ -215,15 +220,32 @@ const App: React.FC = () => {
                     <div className="flex items-center gap-2 mt-1">
                         <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                         <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest flex items-center gap-1">
-                            <Cpu size={10} /> Local Vision Engine active
+                            <Cpu size={10} /> 0.4mm Nozzle Guard active
                         </span>
                     </div>
                 </div>
-                <div className="bg-green-50 text-green-700 p-2 rounded-lg"><ShieldCheck size={20} /></div>
+                {analysis.confidenceScore < 80 ? (
+                    <div className="bg-amber-50 text-amber-600 p-2 rounded-lg" title="Details sind grenzwertig"><AlertTriangle size={20} /></div>
+                ) : (
+                    <div className="bg-green-50 text-green-700 p-2 rounded-lg"><CheckCircle2 size={20} /></div>
+                )}
               </div>
 
               {activeStep === 3 ? (
                 <div className="space-y-6">
+                  {/* Farbauswahl / Erkannte Farben */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Erkannte Farblayer (Max 4)</label>
+                    <div className="flex gap-2">
+                        {analysis.suggestedColors.map((color, idx) => (
+                            <div key={idx} className="group relative">
+                                <div className="w-10 h-10 rounded-xl border border-slate-200 shadow-sm transition-transform hover:scale-110" style={{backgroundColor: color}}></div>
+                                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 hidden group-hover:block bg-slate-900 text-white text-[8px] px-1 py-0.5 rounded uppercase">{color}</div>
+                            </div>
+                        ))}
+                    </div>
+                  </div>
+
                   <div className="space-y-4">
                       <div>
                         <div className="flex justify-between mb-2">
@@ -241,8 +263,14 @@ const App: React.FC = () => {
                       </div>
                   </div>
 
+                  <div className="p-4 bg-slate-50 rounded-2xl">
+                    <p className="text-[10px] leading-relaxed text-slate-600 italic">
+                        "{analysis.reasoning}"
+                    </p>
+                  </div>
+
                   <div className="pt-4 border-t border-slate-50">
-                    <button onClick={() => setActiveStep(4)} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all hover:-translate-y-0.5 active:translate-y-0">
+                    <button onClick={() => setActiveStep(4)} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all">
                       Zusammenfassung <ArrowRight size={18} />
                     </button>
                   </div>
@@ -258,7 +286,7 @@ const App: React.FC = () => {
                   <button 
                     onClick={handleShopifyCheckout} 
                     disabled={redirectStatus !== 'idle'} 
-                    className="w-full py-5 bg-orange-600 text-white rounded-2xl font-bold shadow-xl shadow-orange-100 flex items-center justify-center gap-3 hover:bg-orange-700 transition-all disabled:opacity-70"
+                    className="w-full py-5 bg-orange-600 text-white rounded-2xl font-bold shadow-xl shadow-orange-100 flex items-center justify-center gap-3 hover:bg-orange-700 transition-all"
                   >
                     {redirectStatus === 'idle' ? 'In den Warenkorb legen' : <><Loader2 className="animate-spin" size={18} /> Einen Moment...</>}
                   </button>
@@ -272,13 +300,13 @@ const App: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-soft">
                   <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600 mb-3"><Sparkles size={16}/></div>
-                  <h3 className="text-xs font-bold mb-1">KI-Optimiert</h3>
-                  <p className="text-[10px] text-slate-400 leading-relaxed">Automatische Pfadglättung für perfekte Drucke.</p>
+                  <h3 className="text-xs font-bold mb-1">Farbreduziert</h3>
+                  <p className="text-[10px] text-slate-400 leading-relaxed">Maximal 4 Schichten für saubere Übergänge.</p>
               </div>
               <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-soft">
                   <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 mb-3"><ShieldCheck size={16}/></div>
-                  <h3 className="text-xs font-bold mb-1">Qualität</h3>
-                  <p className="text-[10px] text-slate-400 leading-relaxed">Robuster PLA-Kunststoff, bruchsicher gefertigt.</p>
+                  <h3 className="text-xs font-bold mb-1">Druck-Check</h3>
+                  <p className="text-[10px] text-slate-400 leading-relaxed">Lokale Vision-Prüfung auf 0.4mm Detailgrad.</p>
               </div>
           </div>
         </div>

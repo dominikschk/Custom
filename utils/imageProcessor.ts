@@ -2,6 +2,7 @@
 export interface ProcessedLogoResult {
   url: string;
   palette: string[];
+  imageData: ImageData; // Für die Analyse im Service
 }
 
 export const processLogo = (imageUrl: string): Promise<ProcessedLogoResult> => {
@@ -11,7 +12,7 @@ export const processLogo = (imageUrl: string): Promise<ProcessedLogoResult> => {
     img.onload = () => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      if (!ctx) { resolve({url: imageUrl, palette: []}); return; }
+      if (!ctx) return;
 
       canvas.width = img.width;
       canvas.height = img.height;
@@ -27,6 +28,7 @@ export const processLogo = (imageUrl: string): Promise<ProcessedLogoResult> => {
       let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
       let hasContent = false;
 
+      // Erster Durchlauf: Hintergrund entfernen & Farben sammeln
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
         let isBackground = false;
@@ -34,8 +36,8 @@ export const processLogo = (imageUrl: string): Promise<ProcessedLogoResult> => {
         if (!hasAlpha) {
             const dist = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
             if (dist < 45) isBackground = true;
-        } else {
-            if (a < 20) isBackground = true;
+        } else if (a < 50) {
+            isBackground = true;
         }
 
         if (isBackground) {
@@ -59,8 +61,9 @@ export const processLogo = (imageUrl: string): Promise<ProcessedLogoResult> => {
         }
       }
       
-      if (!hasContent) { resolve({url: imageUrl, palette: []}); return; }
+      if (!hasContent) return;
 
+      // Palette auf max 4 reduzieren
       const sortedBuckets = Object.values(colorAccumulator).sort((a, b) => b.count - a.count);
       const palette: string[] = [];
       const rgbPalette: {r: number, g: number, b: number}[] = [];
@@ -71,7 +74,7 @@ export const processLogo = (imageUrl: string): Promise<ProcessedLogoResult> => {
           
           let isDistinct = true;
           for (const p of rgbPalette) {
-              if (Math.sqrt(Math.pow(r-p.r, 2) + Math.pow(g-p.g, 2) + Math.pow(bl-p.b, 2)) < 50) {
+              if (Math.sqrt(Math.pow(r-p.r, 2) + Math.pow(g-p.g, 2) + Math.pow(bl-p.b, 2)) < 60) {
                   isDistinct = false; break;
               }
           }
@@ -81,7 +84,7 @@ export const processLogo = (imageUrl: string): Promise<ProcessedLogoResult> => {
           }
       }
 
-      // Quantisierung anwenden
+      // Quantisierung: Alle Pixel auf die 4 Palettenfarben mappen
       for (let i = 0; i < data.length; i += 4) {
           if (data[i+3] === 0) continue;
           let minDist = Infinity; let best = rgbPalette[0];
@@ -90,21 +93,33 @@ export const processLogo = (imageUrl: string): Promise<ProcessedLogoResult> => {
               if (d < minDist) { minDist = d; best = p; }
           }
           data[i] = best.r; data[i+1] = best.g; data[i+2] = best.b;
+          data[i+3] = 255; // Solid machen für den Druck
       }
 
       ctx.putImageData(imageData, 0, 0);
+      
+      // Zentrierung vorbereiten
       const contentWidth = maxX - minX + 1;
       const contentHeight = maxY - minY + 1;
-      const size = Math.max(contentWidth, contentHeight) * 1.1;
+      const size = Math.max(contentWidth, contentHeight);
+      
       const finalCanvas = document.createElement('canvas');
-      finalCanvas.width = size; finalCanvas.height = size;
+      finalCanvas.width = size;
+      finalCanvas.height = size;
       const finalCtx = finalCanvas.getContext('2d');
-      if (!finalCtx) { resolve({url: imageUrl, palette}); return; }
+      if (!finalCtx) return;
 
-      finalCtx.drawImage(canvas, minX, minY, contentWidth, contentHeight, (size-contentWidth)/2, (size-contentHeight)/2, contentWidth, contentHeight);
-      resolve({ url: finalCanvas.toDataURL('image/png'), palette });
+      // Automatische Zentrierung im Quadrat
+      const offsetX = (size - contentWidth) / 2;
+      const offsetY = (size - contentHeight) / 2;
+      finalCtx.drawImage(canvas, minX, minY, contentWidth, contentHeight, offsetX, offsetY, contentWidth, contentHeight);
+      
+      resolve({ 
+        url: finalCanvas.toDataURL('image/png'), 
+        palette,
+        imageData: finalCtx.getImageData(0, 0, size, size)
+      });
     };
-    img.onerror = () => resolve({url: imageUrl, palette: []});
     img.src = imageUrl;
   });
 };

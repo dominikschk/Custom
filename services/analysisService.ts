@@ -1,57 +1,64 @@
 
 import { AnalysisResult } from '../types';
 
-/**
- * Lokale Analyse-Engine (Gratis & Schnell)
- * Ersetzt teure Cloud-KIs durch mathematische Heuristiken.
- */
 export const analyzeDesignLocally = async (
-  imageDataUrl: string, 
+  imageData: ImageData, 
   palette: string[]
 ): Promise<AnalysisResult> => {
   return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      // 1. Komplexität berechnen (Farbanzahl ist der Haupttreiber für 3D-Druck Kosten)
-      const colorCount = palette.length;
-      const complexityRating = Math.min(Math.max(colorCount * 2, 1), 10);
+    const { width, height, data } = imageData;
+    const colorCount = palette.length;
+    
+    // 0.4mm Nozzle Check Simulation
+    // Wir nehmen an, der Schlüsselanhänger ist 40mm breit. 
+    // width (Pixel) entspricht also 40mm. 1mm = width/40.
+    // 0.4mm = (width/40) * 0.4 = width/100.
+    const nozzleThresholdPx = Math.max(2, Math.floor(width / 100)); 
+    let thinFeaturesFound = 0;
 
-      // 2. Druckbarkeit prüfen
-      // Wir gehen davon aus, dass das Bild druckbar ist, wenn es Inhalt hat.
-      // (Die Vorverarbeitung im imageProcessor hat bereits den Hintergrund entfernt)
-      const isPrintable = colorCount > 0;
+    // Einfacher Scan nach isolierten Pixelgruppen (Details < 0.4mm)
+    for (let y = 1; y < height - 1; y += 4) {
+      for (let x = 1; x < width - 1; x += 4) {
+        const idx = (y * width + x) * 4;
+        if (data[idx + 3] > 0) {
+          // Check Umgebung
+          let neighbors = 0;
+          for (let dy = -nozzleThresholdPx; dy <= nozzleThresholdPx; dy++) {
+            for (let dx = -nozzleThresholdPx; dx <= nozzleThresholdPx; dx++) {
+              const nIdx = ((y + dy) * width + (x + dx)) * 4;
+              if (data[nIdx + 3] > 0) neighbors++;
+            }
+          }
+          // Wenn ein Pixel fast alleine steht (weniger als 30% der Fläche), ist es ein "Thin Feature"
+          if (neighbors < (nozzleThresholdPx * nozzleThresholdPx * 1.2)) {
+            thinFeaturesFound++;
+          }
+        }
+      }
+    }
 
-      // 3. Preis-Kalkulation
-      // Basis 14.99€ + 2€ pro zusätzliche Farbe (Materialwechsel)
-      const basePrice = 14.99;
-      const colorSurcharge = Math.max(0, colorCount - 1) * 2.50;
-      const estimatedPrice = basePrice + colorSurcharge;
+    const complexityRating = Math.min(Math.max(colorCount * 2 + (thinFeaturesFound > 20 ? 2 : 0), 1), 10);
+    const isPrintable = colorCount > 0 && thinFeaturesFound < 500;
+    
+    let reasoning = `Analyse abgeschlossen: ${colorCount} Farben erkannt.`;
+    if (thinFeaturesFound > 50) {
+      reasoning += ` Warnung: Zu feine Details für eine 0.4mm Düse erkannt (${thinFeaturesFound} kritische Stellen).`;
+    } else {
+      reasoning += " Details sind optimal für den FDM-Druck (0.4mm) geeignet.";
+    }
 
-      // 4. Skalierungsempfehlung
-      // Standardmäßig versuchen wir, die 40mm gut auszunutzen.
-      const recommendedScale = 36;
+    const basePrice = 14.99;
+    const colorSurcharge = Math.max(0, colorCount - 1) * 2.50;
+    const estimatedPrice = basePrice + colorSurcharge;
 
-      resolve({
-        isPrintable,
-        confidenceScore: 95,
-        reasoning: `Lokale Analyse abgeschlossen: ${colorCount} Farben erkannt. Optimiert für 0.4mm Nozzle.`,
-        suggestedColors: palette,
-        complexityRating,
-        estimatedPrice: Number(estimatedPrice.toFixed(2)),
-        recommendedScale
-      });
-    };
-    img.onerror = () => {
-      resolve({
-        isPrintable: false,
-        confidenceScore: 0,
-        reasoning: "Bild konnte nicht geladen werden.",
-        suggestedColors: [],
-        complexityRating: 0,
-        estimatedPrice: 0,
-        recommendedScale: 30
-      });
-    };
-    img.src = imageDataUrl;
+    resolve({
+      isPrintable,
+      confidenceScore: thinFeaturesFound > 100 ? 60 : 98,
+      reasoning,
+      suggestedColors: palette,
+      complexityRating,
+      estimatedPrice: Number(estimatedPrice.toFixed(2)),
+      recommendedScale: 36
+    });
   });
 };
