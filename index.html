@@ -4,19 +4,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PrintForge Premium</title>
+    <title>PrintForge Premium | Luxury Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              cream: {
-                50: '#FDFBF7',
-                100: '#F7F4EB',
-                200: '#EBE5D5',
-                300: '#D6CDB8',
-                900: '#5C5441',
+              onyx: {
+                800: '#1A1A1A',
+                900: '#111111',
+              },
+              gold: {
+                50: '#FFFDF0',
+                100: '#FEF9C3',
+                200: '#FEF08A',
+                300: '#FDE047',
+                400: '#FACC15',
+                500: '#EAB308',
+                600: '#CA8A04',
+                700: '#A16207',
+                800: '#854D0E',
+                900: '#713F12',
+                accent: '#D4AF37',
               },
             },
             fontFamily: {
@@ -24,22 +34,22 @@
               display: ['Playfair Display', 'serif'],
             },
             boxShadow: {
-              'soft': '0 8px 30px rgba(0,0,0,0.04)',
-              'card': '0 0 0 1px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.04)',
-              'float': '0 10px 40px -10px rgba(0, 0, 0, 0.15)',
+              'luxury': '0 20px 50px rgba(0,0,0,0.15)',
+              'gold-glow': '0 0 20px rgba(212, 175, 55, 0.2)',
             },
             animation: {
-              'bounce-slow': 'bounce 3s linear infinite',
-              'fade-in': 'fadeIn 0.5s ease-out forwards',
+              'scan-line': 'scan 3s ease-in-out infinite',
+              'pulse-gold': 'pulseGold 2s ease-in-out infinite',
             },
             keyframes: {
-              fadeIn: {
-                '0%': { opacity: '0', transform: 'translateY(10px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
+              scan: {
+                '0%, 100%': { transform: 'translateY(-10%)', opacity: '0.2' },
+                '50%': { transform: 'translateY(110%)', opacity: '0.8' },
+              },
+              pulseGold: {
+                '0%, 100%': { borderColor: '#D4AF37', boxShadow: '0 0 5px rgba(212, 175, 55, 0.2)' },
+                '50%': { borderColor: '#FACC15', boxShadow: '0 0 20px rgba(212, 175, 55, 0.5)' },
               }
-            },
-            backgroundImage: {
-              'dot-pattern': "radial-gradient(#CBD5E1 1.5px, transparent 1.5px)",
             }
           },
         },
@@ -49,39 +59,43 @@
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&display=swap');
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #FDFBF7;
-        color: #1e293b;
-        background-image: radial-gradient(#e2e8f0 1.2px, transparent 1.2px);
-        background-size: 32px 32px;
+        background-color: #0A0A0A;
+        color: #F8FAFC;
       }
-      .bg-dot-pattern {
-        background-size: 20px 20px;
+      .bg-onyx-mesh {
+        background-color: #0A0A0A;
+        background-image: radial-gradient(circle at 2px 2px, #1A1A1A 1px, transparent 0);
+        background-size: 24px 24px;
       }
-      ::-webkit-scrollbar { width: 6px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-      ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+      .gold-gradient {
+        background: linear-gradient(135deg, #D4AF37 0%, #FACC15 50%, #D4AF37 100%);
+      }
+      .gold-text-gradient {
+        background: linear-gradient(135deg, #D4AF37 0%, #FACC15 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
     </style>
   <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
     "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "three/": "https://esm.sh/three@^0.182.0/",
+    "three": "https://esm.sh/three@^0.182.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
     "@react-three/fiber": "https://esm.sh/@react-three/fiber@^9.4.2",
-    "@react-three/drei": "https://esm.sh/@react-three/drei@^10.7.7",
-    "three": "https://esm.sh/three@^0.182.0",
-    "three/": "https://esm.sh/three@^0.182.0/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.88.0",
     "vite": "https://esm.sh/vite@^7.3.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.88.0",
+    "@react-three/drei": "https://esm.sh/@react-three/drei@^10.7.7",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
   }
 }
 </script>
 </head>
-  <body>
+  <body class="bg-onyx-mesh">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

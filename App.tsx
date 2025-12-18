@@ -9,21 +9,19 @@ import { LogoConfig, AnalysisResult } from './types';
 import { 
   Upload, 
   ArrowRight,
-  Layers,
   Sparkles,
   Loader2,
   Lock,
-  Download,
   ShieldCheck,
   Cpu,
   AlertTriangle,
   CheckCircle2,
   Info,
   Zap,
-  Image as ImageIcon,
   MousePointer2,
-  Eye,
-  XCircle
+  XCircle,
+  Gem,
+  Crown
 } from 'lucide-react';
 
 const SHOPIFY_DOMAIN = process.env.SHOPIFY_DOMAIN || "your-shop.myshopify.com"; 
@@ -70,24 +68,23 @@ const App: React.FC = () => {
     reader.onload = async (event) => {
       const rawResult = event.target?.result as string;
       try {
-        setProcessingStatus("Analysiere Bildtyp...");
+        setProcessingStatus("Sicherheits-Check...");
         const { url, palette, imageData } = await processLogo(rawResult);
         
-        // Erst lokaler Check (schneller & kostenlos)
         const localResult = await analyzeDesignLocally(imageData, palette);
         
         if (localResult.imageType === 'photo') {
-          setFileError("FOTO ERKANNT: Wir akzeptieren nur Logos mit klaren Kanten.");
+          setFileError("FOTO ERKANNT: Bitte laden Sie eine Grafik oder ein Logo hoch.");
           setAnalysis(localResult);
           setActiveStep(1);
           return;
         }
 
-        setProcessingStatus("KI-Verifizierung...");
+        setProcessingStatus("KI Inhalts-Prüfung...");
         const aiSemanticReport = await analyzeImageSemantically(rawResult);
         
         if (aiSemanticReport.classification === 'photo') {
-          setFileError("DIE KI SAGT: Das ist ein Foto. Bitte laden Sie ein echtes Logo hoch.");
+          setFileError("KEINE FOTOS: Die KI hat ein Foto erkannt. Nur Logos sind erlaubt.");
           setAnalysis({ ...localResult, aiReport: aiSemanticReport });
           setActiveStep(1);
           return;
@@ -100,11 +97,11 @@ const App: React.FC = () => {
           setLogoConfig(prev => ({ ...prev, scale: localResult.recommendedScale }));
           setActiveStep(3); 
         } else {
-          setFileError("Analyse fehlgeschlagen. Bild nicht druckbar.");
+          setFileError("Nicht druckbar: Details zu komplex.");
           setActiveStep(1);
         }
       } catch (err) {
-        setFileError("KI Analyse fehlgeschlagen.");
+        setFileError("Analyse fehlgeschlagen.");
         setActiveStep(1);
       } finally {
         setProcessingStatus("");
@@ -122,41 +119,40 @@ const App: React.FC = () => {
           const baseUrl = `https://${SHOPIFY_DOMAIN}/cart/${PRODUCT_VARIANT_ID}:1`;
           const params = new URLSearchParams();
           params.append('attributes[Design ID]', designId);
-          params.append('attributes[Inhalt]', analysis.aiReport?.description || 'Logo');
           window.location.href = `${baseUrl}?${params.toString()}`;
       } catch (err) {
-          alert("Fehler beim Checkout.");
+          alert("Checkout Error.");
           setRedirectStatus('idle');
       }
   };
 
   if (isAdmin) {
     return (
-      <div className="min-h-screen bg-slate-100 p-8">
+      <div className="min-h-screen bg-onyx-900 p-8 text-white">
         <div className="max-w-5xl mx-auto">
-          <div className="flex justify-between mb-8">
-            <h1 className="text-2xl font-bold flex items-center gap-2"><Lock /> Admin Panel</h1>
-            <a href="/" className="text-blue-600 font-bold">← Zum Shop</a>
+          <div className="flex justify-between mb-8 items-center">
+            <h1 className="text-3xl font-display font-bold gold-text-gradient flex items-center gap-3"><Crown /> Admin Dashboard</h1>
+            <a href="/" className="text-gold-400 font-bold hover:underline">← Zurück zum Store</a>
           </div>
-          <div className="bg-white rounded-2xl shadow-card overflow-hidden">
-            {loadingAdmin ? <div className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-slate-300" /></div> : (
+          <div className="bg-onyx-800 rounded-3xl shadow-luxury overflow-hidden border border-white/5">
+            {loadingAdmin ? <div className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-gold-500" /></div> : (
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 border-b uppercase font-bold text-slate-400">
+                <thead className="bg-white/5 border-b border-white/10 uppercase font-bold text-slate-400">
                   <tr>
-                    <th className="p-4">ID</th>
-                    <th className="p-4">Vorschau</th>
-                    <th className="p-4">KI-Inhalt</th>
-                    <th className="p-4">Action</th>
+                    <th className="p-6">Design ID</th>
+                    <th className="p-6">Vorschau</th>
+                    <th className="p-6">KI Status</th>
+                    <th className="p-6">Aktion</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody className="divide-y divide-white/5">
                   {adminDesigns.map(d => (
-                    <tr key={d.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="p-4 font-mono">{d.id}</td>
-                      <td className="p-4"><img src={d.image_url} className="w-12 h-12 object-contain bg-slate-100 rounded border" /></td>
-                      <td className="p-4 text-xs italic text-slate-500">{(d.analysis as any).aiReport?.description || 'Keine Daten'}</td>
-                      <td className="p-4">
-                        <a href={d.image_url} download={`${d.id}.png`} className="text-blue-600 font-bold">PNG</a>
+                    <tr key={d.id} className="hover:bg-white/5 transition-colors">
+                      <td className="p-6 font-mono text-gold-200">{d.id}</td>
+                      <td className="p-6"><img src={d.image_url} className="w-14 h-14 object-contain bg-white/10 rounded-xl border border-white/10" /></td>
+                      <td className="p-6 text-xs italic text-slate-400">{(d.analysis as any).aiReport?.description || 'Logo-Grafik'}</td>
+                      <td className="p-6">
+                        <a href={d.image_url} download={`${d.id}.png`} className="text-gold-500 font-bold hover:text-gold-400 transition-colors">STL / PNG</a>
                       </td>
                     </tr>
                   ))}
@@ -170,64 +166,67 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7]">
-      <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-orange-100/50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-lg"><Zap size={20} fill="currentColor" /></div>
-            <h1 className="font-display font-bold text-xl tracking-tight">PrintForge <span className="text-orange-600">Studio</span></h1>
+    <div className="min-h-screen text-slate-100 pb-20">
+      <header className="sticky top-0 z-50 bg-black/80 backdrop-blur-2xl border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-6 py-5 flex justify-between items-center">
+          <div className="flex items-center gap-3 group cursor-default">
+            <div className="w-11 h-11 gold-gradient rounded-2xl flex items-center justify-center text-black shadow-gold-glow group-hover:scale-110 transition-transform"><Crown size={22} /></div>
+            <h1 className="font-display font-bold text-2xl tracking-tight">PrintForge <span className="gold-text-gradient">Studio</span></h1>
           </div>
-          <div className="flex items-center gap-2 text-xs font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-full border border-green-100">
-            <ShieldCheck size={14} /> Logo-Sicherheit aktiv
+          <div className="hidden md:flex items-center gap-4 bg-white/5 px-4 py-2 rounded-2xl border border-white/10">
+            <div className="w-2 h-2 rounded-full bg-gold-500 animate-pulse"></div>
+            <span className="text-[10px] uppercase tracking-[0.3em] font-bold text-gold-400">Luxury Manufacturing Active</span>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-12 gap-12">
-        <div className="lg:col-span-7 space-y-6">
+        <div className="lg:col-span-7 space-y-8">
           {logoConfig.url && activeStep >= 3 ? (
-            <Viewer3D ref={viewerRef} logoConfig={logoConfig} detectedColors={analysis?.suggestedColors} />
+            <div className="relative">
+                <div className="absolute -inset-1 gold-gradient rounded-[2.2rem] opacity-20 blur-xl"></div>
+                <Viewer3D ref={viewerRef} logoConfig={logoConfig} detectedColors={analysis?.suggestedColors} />
+            </div>
           ) : (
-            <div className="w-full h-[450px] rounded-[2rem] bg-white border border-slate-200 shadow-soft flex flex-col items-center justify-center text-slate-300 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-dot-pattern opacity-10 group-hover:opacity-20 transition-opacity"></div>
+            <div className={`w-full h-[500px] rounded-[3rem] bg-onyx-800 border-2 border-dashed transition-all duration-700 relative overflow-hidden flex flex-col items-center justify-center ${fileError ? 'border-red-900/50 bg-red-950/10' : 'border-white/10 hover:border-gold-500/50'}`}>
+                {/* Animierte Scan-Line */}
+                {!fileError && activeStep === 1 && <div className="absolute inset-0 bg-gradient-to-b from-transparent via-gold-500/5 to-transparent w-full h-20 animate-scan-line z-0"></div>}
+                
                 {fileError ? (
-                  <div className="text-center p-8 z-10 animate-fade-in">
-                    <div className="bg-red-50 p-6 rounded-full mb-4 inline-block"><XCircle size={48} className="text-red-500" /></div>
-                    <h3 className="text-red-900 font-bold text-lg mb-2">Upload blockiert</h3>
-                    <p className="text-red-600/80 text-sm max-w-md mx-auto font-medium">{fileError}</p>
-                    <button onClick={() => {setFileError(null); setAnalysis(null);}} className="mt-6 px-6 py-2 bg-red-600 text-white rounded-full text-xs font-bold hover:bg-red-700 transition-colors">Anderes Bild wählen</button>
+                  <div className="text-center p-12 z-10 animate-fade-in">
+                    <div className="bg-red-500/10 p-6 rounded-full mb-6 inline-block border border-red-500/20"><XCircle size={60} className="text-red-500" /></div>
+                    <h3 className="text-white font-display text-2xl mb-3">Zutritt verweigert</h3>
+                    <p className="text-red-400 text-sm max-w-sm mx-auto font-medium leading-relaxed">{fileError}</p>
+                    <button onClick={() => {setFileError(null); setAnalysis(null);}} className="mt-8 px-10 py-3 gold-gradient text-black rounded-full text-xs font-bold hover:brightness-110 transition-all shadow-gold-glow">Neuer Versuch</button>
                   </div>
                 ) : (
-                  <>
-                    <div className="bg-slate-50 p-6 rounded-full mb-4 animate-bounce-slow shadow-inner"><Upload size={40} className="text-slate-200" /></div>
-                    <p className="font-medium text-slate-400 text-center px-8">Logo hierher ziehen<br/><span className="text-[10px] uppercase tracking-widest opacity-60">KEINE FOTOS - NUR GRAFIKEN</span></p>
-                  </>
+                  <div className="relative z-10 text-center">
+                    <div className="bg-white/5 p-8 rounded-[2.5rem] mb-6 border border-white/5 shadow-inner group-hover:scale-105 transition-transform duration-500"><Upload size={50} className="text-gold-500/50" /></div>
+                    <p className="font-display text-xl text-white mb-2">Signature Logo Upload</p>
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-gold-500 font-bold opacity-60">High-Fidelity Scan Ready</p>
+                    <input type="file" accept="image/*" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                  </div>
                 )}
             </div>
           )}
 
-          {/* KI CAPABILITY PANEL - Nur zeigen wenn es KEIN Foto-Fehler ist oder als Info */}
-          {analysis && analysis.capabilities && (
-            <div className={`bg-white border rounded-[2rem] p-8 shadow-soft animate-fade-in relative overflow-hidden ${analysis.imageType === 'photo' ? 'border-red-100' : 'border-slate-100'}`}>
-              <div className="flex items-center gap-2 mb-6 relative z-10">
-                <div className={`p-2 rounded-lg ${analysis.imageType === 'photo' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
-                  {analysis.imageType === 'photo' ? <AlertTriangle size={18}/> : <Sparkles size={18}/>}
-                </div>
-                <h3 className="font-bold text-sm tracking-tight uppercase">Vision-Engine Analyse</h3>
+          {analysis && analysis.isPrintable && (
+            <div className="bg-onyx-800 border border-white/5 rounded-[3rem] p-10 shadow-luxury animate-fade-in relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-5"><Gem size={150} className="text-gold-500" /></div>
+              <div className="flex items-center gap-3 mb-8 relative z-10">
+                <div className="p-3 bg-gold-500/10 text-gold-500 rounded-2xl border border-gold-500/20"><Sparkles size={24}/></div>
+                <h3 className="font-display font-bold text-xl gold-text-gradient">Handwerks-Bericht</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
                 {analysis.capabilities.map((cap, i) => (
-                  <div key={i} className="space-y-3">
+                  <div key={i} className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">{cap.title}</span>
-                        {cap.status === 'optimal' ? <CheckCircle2 size={12} className="text-green-500" /> : <AlertTriangle size={12} className={cap.status === 'critical' ? 'text-red-500' : 'text-amber-500'} />}
+                        <span className="text-[10px] font-bold uppercase text-gold-400/60 tracking-[0.2em]">{cap.title}</span>
+                        {cap.status === 'optimal' ? <CheckCircle2 size={14} className="text-gold-400" /> : <AlertTriangle size={14} className="text-amber-500" />}
                     </div>
-                    <p className={`text-[11px] leading-relaxed font-semibold ${cap.status === 'critical' ? 'text-red-600' : 'text-slate-600'}`}>{cap.description}</p>
-                    <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full transition-all duration-1000 ${cap.status === 'optimal' ? 'bg-green-500' : (cap.status === 'critical' ? 'bg-red-500' : 'bg-orange-500')}`} 
-                          style={{width: '100%'}}
-                        ></div>
+                    <p className="text-sm leading-relaxed font-medium text-slate-300 italic">"{cap.description}"</p>
+                    <div className="w-full h-1 bg-white/5 rounded-full">
+                        <div className="h-full bg-gold-500 rounded-full" style={{width: '100%'}}></div>
                     </div>
                   </div>
                 ))}
@@ -238,88 +237,87 @@ const App: React.FC = () => {
 
         <div className="lg:col-span-5 space-y-8">
           {activeStep <= 2 && (
-            <div className="bg-white p-8 rounded-[2rem] shadow-card border border-slate-100 relative overflow-hidden">
-              <div className="relative z-10">
-                <h2 className="text-xl font-bold mb-2">Logo-Check</h2>
-                <p className="text-slate-400 text-sm mb-6 font-medium leading-relaxed">Wir prüfen die Eignung für den 3D-Druck. Fotos werden automatisch abgelehnt.</p>
-                
-                {activeStep === 1 ? (
-                  <div className="group relative h-48 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center bg-slate-50 hover:bg-orange-50 hover:border-orange-200 transition-all cursor-pointer">
-                    <input type="file" accept="image/*" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer z-20" />
-                    <div className="bg-white p-4 rounded-xl shadow-sm group-hover:scale-110 transition-transform"><Upload className="text-slate-400 group-hover:text-orange-500" /></div>
-                    <span className="text-sm font-bold mt-4 text-slate-600">Logo hochladen</span>
-                    <span className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-bold">Keine Fotos akzeptiert</span>
+            <div className="bg-onyx-800 p-10 rounded-[3rem] shadow-luxury border border-white/5 relative overflow-hidden animate-fade-in">
+              <h2 className="text-2xl font-display font-bold mb-3 text-white">Präzisions-Check</h2>
+              <p className="text-slate-400 text-sm mb-8 leading-relaxed">Jedes Design wird durch unsere AI-Vision Engine auf materielle Machbarkeit geprüft.</p>
+              
+              {activeStep === 2 ? (
+                <div className="text-center py-10">
+                  <div className="relative inline-block mb-6">
+                      <Loader2 className="animate-spin text-gold-500" size={48} />
+                      <Sparkles className="absolute -top-3 -right-3 text-gold-300 animate-pulse" size={24} />
                   </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="relative inline-block">
-                        <Loader2 className="animate-spin text-orange-500 mb-4" size={32} />
-                        <Sparkles className="absolute -top-2 -right-2 text-yellow-400 animate-pulse" size={16} />
-                    </div>
-                    <p className="text-sm font-bold text-slate-900 tracking-tight">{processingStatus}</p>
+                  <p className="text-lg font-display text-white italic">{processingStatus}</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex gap-3 items-center p-4 bg-white/5 rounded-2xl border border-white/10">
+                    <ShieldCheck className="text-gold-500" size={20} />
+                    <span className="text-xs font-bold text-gold-200">Keine Fotos - Nur saubere Vektoren</span>
                   </div>
-                )}
-              </div>
+                  <div className="flex gap-3 items-center p-4 bg-white/5 rounded-2xl border border-white/10 opacity-50">
+                    <Zap className="text-slate-500" size={20} />
+                    <span className="text-xs font-bold text-slate-400">Automatische Layer-Berechnung</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {activeStep >= 3 && analysis && analysis.isPrintable && (
-            <div className="bg-white p-8 rounded-[2rem] shadow-card border border-slate-100 space-y-8 animate-fade-in">
-              <div className="flex justify-between items-start">
-                <div>
-                    <h2 className="font-bold text-xl tracking-tight">Anpassung</h2>
-                    <div className="flex items-center gap-2 mt-2">
-                        <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div>
-                        <span className="text-[10px] font-bold text-slate-900 uppercase tracking-[0.15em]">Logo-Modus</span>
-                    </div>
-                </div>
-                <div className="bg-blue-50 text-blue-600 p-2.5 rounded-xl shadow-sm border border-blue-100"><ShieldCheck size={22} /></div>
+            <div className="bg-onyx-800 p-10 rounded-[3rem] shadow-luxury border border-gold-500/20 space-y-10 animate-fade-in">
+              <div className="flex justify-between items-center">
+                <h2 className="font-display font-bold text-2xl text-white">Signature Config</h2>
+                <div className="p-3 bg-white/5 rounded-2xl border border-white/10"><Crown size={24} className="text-gold-500" /></div>
               </div>
 
               {activeStep === 3 ? (
-                <div className="space-y-6">
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">Filament-Palette</label>
-                    <div className="flex gap-4">
+                <div className="space-y-8">
+                  <div className="space-y-5">
+                    <label className="text-[10px] font-bold text-gold-400/50 uppercase tracking-[0.3em]">Material Palette</label>
+                    <div className="flex gap-5">
                         {analysis.suggestedColors.map((color, idx) => (
-                            <div key={idx} className="w-11 h-11 rounded-xl border-2 border-white shadow-card" style={{backgroundColor: color}}></div>
+                            <div key={idx} className="w-14 h-14 rounded-2xl border-2 border-white/20 shadow-luxury hover:scale-110 transition-transform cursor-pointer" style={{backgroundColor: color}}></div>
                         ))}
                     </div>
                   </div>
 
-                  <div className="space-y-5">
-                      <div>
-                        <div className="flex justify-between mb-2 items-center">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Größe</label>
-                            <span className="text-[11px] font-bold px-2 py-1 bg-slate-900 text-white rounded-md tabular-nums">{logoConfig.scale}mm</span>
+                  <div className="space-y-6">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-bold text-gold-400/50 uppercase tracking-[0.3em]">Jewelry Scale</label>
+                            <span className="text-sm font-bold text-white tabular-nums">{logoConfig.scale}mm</span>
                         </div>
-                        <input type="range" min="15" max="39" value={logoConfig.scale} onChange={e => setLogoConfig({...logoConfig, scale: parseInt(e.target.value)})} className="w-full accent-slate-900 h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer" />
+                        <input type="range" min="15" max="39" value={logoConfig.scale} onChange={e => setLogoConfig({...logoConfig, scale: parseInt(e.target.value)})} className="w-full accent-gold-500 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer" />
                       </div>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-50">
-                    <button onClick={() => setActiveStep(4)} className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl hover:bg-slate-800 transition-all active:scale-[0.98]">
-                      Weiter zum Checkout <ArrowRight size={18} />
+                  <div className="pt-6">
+                    <button onClick={() => setActiveStep(4)} className="w-full py-6 gold-gradient text-black rounded-[2rem] font-bold flex items-center justify-center gap-3 shadow-gold-glow hover:brightness-110 transition-all active:scale-[0.98] group">
+                      Checkout Review <ArrowRight size={20} className="group-hover:translate-x-2 transition-transform" />
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-6 animate-fade-in">
-                  <div className="bg-slate-50 p-7 rounded-[2rem] space-y-5 shadow-inner">
-                    <div className="flex justify-between text-xs text-slate-500 font-bold uppercase tracking-wider"><span>Gesamtpreis</span><span>€{analysis.estimatedPrice.toFixed(2)}</span></div>
+                <div className="space-y-8 animate-fade-in">
+                  <div className="bg-black/40 p-10 rounded-[2.5rem] space-y-6 border border-white/5">
+                    <div className="flex justify-between text-sm text-slate-400 font-bold uppercase tracking-widest"><span>PrintForge Original</span><span>€14.99</span></div>
+                    <div className="flex justify-between text-sm text-slate-400 font-bold uppercase tracking-widest"><span>Precision Fee</span><span>€{(analysis.estimatedPrice - 14.99).toFixed(2)}</span></div>
+                    <div className="flex justify-between text-2xl font-display font-bold pt-8 border-t border-white/10 text-gold-400 italic"><span>Grand Total</span><span>€{analysis.estimatedPrice.toFixed(2)}</span></div>
                   </div>
-                  <button onClick={handleShopifyCheckout} disabled={redirectStatus !== 'idle'} className="w-full py-6 bg-orange-600 text-white rounded-2xl font-bold shadow-xl flex items-center justify-center gap-3 hover:bg-orange-700 transition-all text-lg">
-                    {redirectStatus === 'idle' ? 'In den Warenkorb' : 'Verbinde...'}
+                  
+                  <button onClick={handleShopifyCheckout} disabled={redirectStatus !== 'idle'} className="w-full py-7 bg-white text-black rounded-[2rem] font-bold shadow-luxury flex items-center justify-center gap-4 hover:bg-gold-50 transition-all text-xl">
+                    {redirectStatus === 'idle' ? 'Finalize Order' : <Loader2 className="animate-spin" />}
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          <div className="p-6 rounded-[2.5rem] bg-slate-900 text-white shadow-soft">
-              <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center text-orange-400 mb-5 shadow-sm"><Lock size={22}/></div>
-              <h3 className="text-xs font-bold mb-2 uppercase tracking-widest">Premium Richtlinie</h3>
-              <p className="text-[10px] text-slate-400 leading-relaxed font-semibold italic">"Um die höchste Druckqualität zu garantieren, fertigen wir ausschließlich Logos und Grafiken. Fotos sind für dieses Verfahren nicht geeignet."</p>
+          <div className="p-8 rounded-[3rem] bg-black/40 border border-white/5 space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-gold-500 mb-4"><ShieldCheck size={24}/></div>
+              <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-white">Quality Guarantee</h3>
+              <p className="text-xs text-slate-500 leading-relaxed italic">"Our master artisans and AI verification ensure that every keychain meets industrial 3D printing standards."</p>
           </div>
         </div>
       </main>
